@@ -2,7 +2,7 @@
 $host = 'localhost';
 $db   = 'gonflages_db';
 $user = 'gonflageuser';
-$pass = 'monsuperpass';
+$pass = 'deiv!twyHort4';
 $dsn = "mysql:host=$host;dbname=$db;charset=utf8mb4";
 
 try {
@@ -46,21 +46,26 @@ $par_pers = $stmt_pers->fetchAll();
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Statistiques Gonflage</title>
     <style>
-        body { font-family: sans-serif; margin: 20px; }
-        .card { background: #eee; padding: 20px; margin-bottom: 20px; border-radius: 8px; display: inline-block; min-width: 200px; }
+        body { font-family: -apple-system, sans-serif; margin: 10px; background: #f4f4f4; color: #333; }
+        nav { margin-bottom: 20px; text-align: center; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+        nav a { background: #eee; padding: 8px 12px; border-radius: 4px; text-decoration: none; color: #007bff; font-size: 0.9em; font-weight: bold; border: 1px solid #ccc; }
+        .container { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .card { background: #e7f3ff; padding: 15px; margin-bottom: 10px; border-radius: 8px; border-left: 5px solid #007bff; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 20px; }
         table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-        th { background: #333; color: white; }
-        nav { margin-bottom: 20px; }
+        th, td { border-bottom: 1px solid #ddd; padding: 10px; text-align: left; }
+        select, button { padding: 10px; margin: 5px 0; width: 100%; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; }
+        @media (min-width: 480px) { select { width: auto; } button { width: auto; } }
     </style>
 </head>
 <body>
     <nav>
-    <a href="index.php">Calculateur</a> |
-    <a href="liste.php">Liste des factures</a> |
-    <a href="stats.php"><b>Statistiques</b></a> |
+    <a href="index.php">Calculateur</a>
+    <a href="liste.php">Liste des factures</a>
+    <a href="stats.php"><b>Statistiques</b></a>
     <a href="export.php">Exporter CSV</a>
 
     </nav>

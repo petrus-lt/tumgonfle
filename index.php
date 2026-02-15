@@ -68,22 +68,28 @@ if (isset($_POST['calculer'])) {
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestion Gonflage O2</title>
     <style>
-        body { font-family: sans-serif; margin: 20px; background: #f4f4f4; }
-        .container { background: white; padding: 20px; border-radius: 8px; max-width: 600px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        input { margin-bottom: 10px; width: 100%; padding: 8px; box-sizing: border-box; }
-        button { padding: 10px 15px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; }
+        body { font-family: -apple-system, sans-serif; margin: 10px; background: #f4f4f4; color: #333; }
+        .container { background: white; padding: 15px; border-radius: 8px; max-width: 600px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin: auto; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; }
+        input { margin-bottom: 15px; width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 15px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 1.1em; font-weight: bold; }
         .result { background: #e7f3ff; padding: 15px; margin-top: 20px; border-left: 5px solid #007bff; }
-        nav { margin-bottom: 20px; }
+        nav { margin-bottom: 20px; text-align: center; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+        nav a { background: #eee; padding: 8px 12px; border-radius: 4px; text-decoration: none; color: #007bff; font-size: 0.9em; }
+        @media (min-width: 480px) {
+             .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        }
     </style>
 </head>
 <body>
 
 <nav>
-    <a href="index.php"><b>Calculateur</b></a> |
-    <a href="liste.php">Liste des factures</a> |
-    <a href="stats.php">Statistiques</a> |
+    <a href="index.php"><b>Calculateur</b></a>
+    <a href="liste.php">Liste des factures</a>
+    <a href="stats.php">Statistiques</a>
     <a href="export.php">Exporter CSV</a>
 </nav>
 
