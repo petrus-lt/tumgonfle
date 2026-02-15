@@ -26,18 +26,7 @@ $gonflages = $pdo->query("SELECT * FROM gonflages ORDER BY date_gonflage DESC")-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Suivi des paiements</title>
-    <style>
-        body { font-family: -apple-system, sans-serif; margin: 10px; background: #f4f4f4; color: #333; }
-        nav { margin-bottom: 20px; text-align: center; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
-        nav a { background: #eee; padding: 8px 12px; border-radius: 4px; text-decoration: none; color: #007bff; font-size: 0.9em; font-weight: bold; border: 1px solid #ccc; }
-        .container { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; min-width: 500px; }
-        th, td { border-bottom: 1px solid #ddd; padding: 12px 8px; text-align: left; font-size: 0.9em; }
-        th { background-color: #f8f9fa; }
-        .status-ok { color: #28a745; font-weight: bold; }
-        .status-no { color: #dc3545; font-weight: bold; }
-        .btn-paye { background: #28a745; color: white; padding: 6px 10px; border-radius: 4px; text-decoration: none; font-size: 0.8em; }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <nav>
@@ -70,7 +59,7 @@ $gonflages = $pdo->query("SELECT * FROM gonflages ORDER BY date_gonflage DESC")-
             </td>
             <td>
                 <?php if (!$g['paye']): ?>
-                    <a href="liste.php?paye=<?php echo $g['id']; ?>">Marquer payé</a>
+                    <a href="liste.php?paye=<?php echo $g['id']; ?>" class="btn-action btn-success" style="padding: 5px 10px; font-size: 0.8em; width: auto;">Marquer payé</a>
                 <?php endif; ?>
             </td>
         </tr>
