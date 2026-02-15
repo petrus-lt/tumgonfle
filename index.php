@@ -81,9 +81,10 @@ if (isset($_POST['calculer'])) {
 <body>
 
 <nav>
-    <a href="index.php">Calculateur</a> |
+    <a href="index.php"><b>Calculateur</b></a> |
     <a href="liste.php">Liste des factures</a> |
-    <a href="stats.php">Statistiques</a>
+    <a href="stats.php">Statistiques</a> |
+    <a href="export.php">Exporter CSV</a>
 </nav>
 
 <div class="container">

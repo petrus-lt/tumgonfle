@@ -37,7 +37,11 @@ $par_pers = $pdo->query("SELECT proprietaire, SUM(litres_o2_utilises) as o2, SUM
 </head>
 <body>
     <nav>
-        <a href="index.php">Calculateur</a> | <a href="liste.php">Paiements</a> | <b>Statistiques</b>
+    <a href="index.php">Calculateur</a> |
+    <a href="liste.php">Liste des factures</a> |
+    <a href="stats.php"><b>Statistiques</b></a> |
+    <a href="export.php">Exporter CSV</a>
+
     </nav>
 
     <h2>Statistiques Globales</h2>

@@ -34,7 +34,12 @@ $gonflages = $pdo->query("SELECT * FROM gonflages ORDER BY date_gonflage DESC")-
     </style>
 </head>
 <body>
-    <nav><a href="index.php">Retour Calculateur</a></nav>
+    <nav>
+       <a href="index.php">Calculateur</a> |
+       <a href="liste.php"><b>Liste des factures</b></a> |
+       <a href="stats.php">Statistiques</a> |
+       <a href="export.php">Exporter CSV</a>
+    </nav>
     <h2>Historique des Gonflages</h2>
     <table>
         <tr>
