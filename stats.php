@@ -44,9 +44,17 @@ $par_pers = $stmt_pers->fetchAll();
 $total_o2_global = $globale['total_o2'] ?: 1; // Evite division par zero
 $current_angle = 0;
 $chart_parts = [];
-foreach ($par_pers as $p) {
+$colors = ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6610f2', '#fd7e14', '#17a2b8', '#6c757d'];
+foreach ($par_pers as $index => $p) {
     $percentage = ($p['o2'] / $total_o2_global) * 100;
-    $chart_parts[] = ['nom' => $p['proprietaire'], 'percent' => $percentage];
+    // On utilise l'index de la boucle pour garantir des couleurs distinctes
+    $color_index = $index % count($colors);
+
+    $chart_parts[] = [
+        'nom' => $p['proprietaire'],
+        'percent' => $percentage,
+        'color' => $colors[$color_index]
+    ];
 }
 
 ?>
@@ -102,14 +110,12 @@ foreach ($par_pers as $p) {
         <h2>Repartition par Plongeur</h2>
         <div class="chart-container">
             <?php
-            $colors = ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6610f2', '#fd7e14', '#20c997'];
             $gradient = "";
             $acc = 0;
             foreach ($chart_parts as $i => $part) {
-                $color = $colors[$i % count($colors)];
                 $start = $acc;
                 $acc += $part['percent'];
-                $gradient .= "$color $start% $acc%, ";
+                $gradient .= $part['color'] . " $start% $acc%, ";
             }
             $gradient = rtrim($gradient, ", ");
             ?>
@@ -119,7 +125,7 @@ foreach ($par_pers as $p) {
             <div class="legend">
                 <?php foreach ($chart_parts as $i => $part): ?>
                 <div class="legend-item">
-                    <div class="color-box" style="background: <?php echo $colors[$i % count($colors)]; ?>;"></div>
+                    <div class="color-box" style="background: <?php echo $part['color']; ?>;"></div>
                     <span><?php echo htmlspecialchars($part['nom']); ?> (<?php echo round($part['percent']); ?>%)</span>
                 </div>
                 <?php endforeach; ?>
