@@ -1,14 +1,7 @@
 <?php
-// Configuration Connexion BDD
-$host = 'localhost';
-$db   = 'gonflages_db';
-$user = 'gonflageuser';
-$pass = 'monsuperpass';
-$dsn = "mysql:host=$host;dbname=$db;charset=utf8mb4";
+require 'db.php';
 
 try {
-    $pdo = new PDO($dsn, $user, $pass);
-    
     // 1. Récupération des données
     $query = $pdo->query("SELECT date_gonflage, proprietaire, volume_bloc, litres_o2_utilises, prix_facture, paye FROM gonflages ORDER BY date_gonflage DESC");
     $rows = $query->fetchAll(PDO::FETCH_ASSOC);

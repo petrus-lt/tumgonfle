@@ -1,16 +1,5 @@
 <?php
-// Configuration Connexion BDD
-$host = 'localhost';
-$db   = 'gonflages_db';
-$user = 'gonflageuser';
-$pass = 'monsuperpass';
-$dsn = "mysql:host=$host;dbname=$db;charset=utf8mb4";
-
-try {
-    $pdo = new PDO($dsn, $user, $pass);
-} catch (PDOException $e) {
-    die("Erreur de connexion : " . $e->getMessage());
-}
+require 'db.php';
 
 // Initialisation des variables par défaut
 $nom_pers = "";

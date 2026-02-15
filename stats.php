@@ -1,16 +1,5 @@
 <?php
-$host = 'localhost';
-$db   = 'gonflages_db';
-$user = 'gonflageuser';
-$pass = 'monsuperpass';
-$dsn = "mysql:host=$host;dbname=$db;charset=utf8mb4";
-
-try {
-    $pdo = new PDO($dsn, $user, $pass);
-} catch (PDOException $e) {
-    die("Erreur de connexion : " . $e->getMessage());
-}
-
+require 'db.php';
 // Filtres
 $mois = $_GET['mois'] ?? '';
 $annee = $_GET['annee'] ?? date('Y');
