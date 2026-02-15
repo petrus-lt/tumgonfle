@@ -5,14 +5,9 @@ Ce projet est une application web legere permettant de calculer les melanges Nit
 
 == Fonctionnalites
 
-    Calculateur de melange : determine la pression d'O2 a ajouter et la pression d'arrêt avant complement a l'air.
-
-    Gestion des blocs : supporte les volumes avec decimales (ex: S40 de 5.6L).
-
-    Facturation : enregistrement automatique dans une base de donnees MySQL.
-
-    Suivi des paiements : interface pour marquer les factures comme payees.
-
-    Statistiques : filtres par mois et par an pour la consommation d'O2.
-
-    Export : generation de rapports au format CSV.
+* Calculateur de melange : determine la pression d'O2 a ajouter et la pression d'arrêt avant complement a l'air.
+* Gestion des blocs : supporte les volumes avec decimales (ex: S40 de 5.6L).
+* Facturation : enregistrement automatique dans une base de donnees MySQL.
+* Suivi des paiements : interface pour marquer les factures comme payees.
+* Statistiques : filtres par mois et par an pour la consommation d'O2.
+* Export : generation de rapports au format CSV.
