@@ -11,14 +11,35 @@ try {
     die("Erreur de connexion : " . $e->getMessage());
 }
 
-// Globales
-$globale = $pdo->query("SELECT SUM(litres_o2_utilises) as total_o2, SUM(prix_facture) as total_ca FROM gonflages")->fetch();
+// Filtres
+$mois = $_GET['mois'] ?? '';
+$annee = $_GET['annee'] ?? date('Y');
+$where = "WHERE 1=1";
+$params = [];
 
-// Par personne
-$par_pers = $pdo->query("SELECT proprietaire, SUM(litres_o2_utilises) as o2, SUM(prix_facture) as euros, COUNT(*) as nb 
-                         FROM gonflages 
-                         GROUP BY proprietaire 
-                         ORDER BY o2 DESC")->fetchAll();
+if ($annee != 'all') {
+    $where .= " AND YEAR(date_gonflage) = ?";
+    $params[] = $annee;
+    if ($mois != '') {
+        $where .= " AND MONTH(date_gonflage) = ?";
+        $params[] = $mois;
+    }
+}
+
+// Globales avec filtre
+$stmt_glob = $pdo->prepare("SELECT SUM(litres_o2_utilises) as total_o2, SUM(prix_facture) as total_ca FROM gonflages $where");
+$stmt_glob->execute($params);
+$globale = $stmt_glob->fetch();
+
+// Par personne avec filtre
+$stmt_pers = $pdo->prepare("SELECT proprietaire, SUM(litres_o2_utilises) as o2, SUM(prix_facture) as euros, COUNT(*) as nb
+                            FROM gonflages
+                            $where
+                            GROUP BY proprietaire
+                            ORDER BY o2 DESC");
+$stmt_pers->execute($params);
+$par_pers = $stmt_pers->fetchAll();
+
 ?>
 
 <!DOCTYPE html>
@@ -43,6 +64,26 @@ $par_pers = $pdo->query("SELECT proprietaire, SUM(litres_o2_utilises) as o2, SUM
     <a href="export.php">Exporter CSV</a>
 
     </nav>
+
+    <form method="GET" style="background:#eee; padding:15px; border-radius:8px; margin-bottom:20px;">
+        <label>Année :</label>
+        <select name="annee">
+            <option value="all">Toutes</option>
+            <?php for($i=date('Y'); $i>=2024; $i--) echo "<option value='$i' ".($annee==$i?'selected':'').">$i</option>"; ?>
+        </select>
+
+        <label>Mois :</label>
+        <select name="mois">
+            <option value="">Tous les mois</option>
+            <?php
+            for($m=1; $m<=12; $m++) {
+                $name = date('F', mktime(0, 0, 0, $m, 1));
+                echo "<option value='$m' ".($mois==$m?'selected':'').">$name</option>";
+            }
+            ?>
+        </select>
+        <button type="submit">Filtrer</button>
+    </form>
 
     <h2>Statistiques Globales</h2>
     <div class="card">
