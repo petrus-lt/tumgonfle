@@ -40,6 +40,15 @@ $stmt_pers = $pdo->prepare("SELECT proprietaire, SUM(litres_o2_utilises) as o2, 
 $stmt_pers->execute($params);
 $par_pers = $stmt_pers->fetchAll();
 
+// Calcul des parts pour le camembert
+$total_o2_global = $globale['total_o2'] ?: 1; // Evite division par zero
+$current_angle = 0;
+$chart_parts = [];
+foreach ($par_pers as $p) {
+    $percentage = ($p['o2'] / $total_o2_global) * 100;
+    $chart_parts[] = ['nom' => $p['proprietaire'], 'percent' => $percentage];
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -87,6 +96,35 @@ $par_pers = $stmt_pers->fetchAll();
     <div class="card">
         <strong>Chiffre d'Affaires :</strong><br>
         <span style="font-size: 24px;"><?php echo round($globale['total_ca'], 2); ?> €</span>
+    </div>
+
+    <div class="container">
+        <h2>Repartition par Plongeur</h2>
+        <div class="chart-container">
+            <?php
+            $colors = ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6610f2', '#fd7e14', '#20c997'];
+            $gradient = "";
+            $acc = 0;
+            foreach ($chart_parts as $i => $part) {
+                $color = $colors[$i % count($colors)];
+                $start = $acc;
+                $acc += $part['percent'];
+                $gradient .= "$color $start% $acc%, ";
+            }
+            $gradient = rtrim($gradient, ", ");
+            ?>
+
+            <div class="pie" style="background: conic-gradient(<?php echo $gradient; ?>);"></div>
+
+            <div class="legend">
+                <?php foreach ($chart_parts as $i => $part): ?>
+                <div class="legend-item">
+                    <div class="color-box" style="background: <?php echo $colors[$i % count($colors)]; ?>;"></div>
+                    <span><?php echo htmlspecialchars($part['nom']); ?> (<?php echo round($part['percent']); ?>%)</span>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
     </div>
 
     <h2>Consommation par utilisateur</h2>
