@@ -1,9 +1,17 @@
 <?php
 require 'db.php';
 
+// Sécurisation de la mise à jour : on force l'ID en entier
 if (isset($_GET['paye'])) {
-    $stmt = $pdo->prepare("UPDATE gonflages SET paye = 1 WHERE id = ?");
-    $stmt->execute([$_GET['paye']]);
+    $id_a_payer = (int)$_GET['paye'];
+    if ($id_a_payer > 0) {
+        $stmt = $pdo->prepare("UPDATE gonflages SET paye = 1 WHERE id = ?");
+        $stmt->execute([$id_a_payer]);
+
+        // Redirection pour "nettoyer" l'URL et éviter de repayer en rafraîchissant la page
+        header("Location: liste.php");
+        exit();
+    }
 }
 
 $gonflages = $pdo->query("SELECT * FROM gonflages ORDER BY date_gonflage DESC")->fetchAll();
@@ -27,32 +35,42 @@ $gonflages = $pdo->query("SELECT * FROM gonflages ORDER BY date_gonflage DESC")-
     <div class="container">
     <h2>Historique des Gonflages</h2>
     <table>
-        <tr>
-            <th>Date</th>
-            <th>Client</th>
-            <th>Volume Bloc</th>
-            <th>O2 utilisé</th>
-            <th>Prix</th>
-            <th>Statut</th>
-            <th>Action</th>
-        </tr>
-        <?php foreach ($gonflages as $g): ?>
-        <tr>
-            <td><?php echo $g['date_gonflage']; ?></td>
-            <td><?php echo htmlspecialchars($g['proprietaire']); ?></td>
-            <td><?php echo $g['volume_bloc']; ?>L</td>
-            <td><?php echo $g['litres_o2_utilises']; ?> L</td>
-            <td><?php echo $g['prix_facture']; ?> €</td>
-            <td class="<?php echo $g['paye'] ? 'status-ok' : 'status-no'; ?>">
-                <?php echo $g['paye'] ? 'Payé' : 'À payer'; ?>
-            </td>
-            <td>
-                <?php if (!$g['paye']): ?>
-                    <a href="liste.php?paye=<?php echo $g['id']; ?>" class="btn-action btn-success" style="padding: 5px 10px; font-size: 0.8em; width: auto;">Marquer payé</a>
-                <?php endif; ?>
-            </td>
-        </tr>
-        <?php endforeach; ?>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Client</th>
+                <th>Volume</th>
+                <th>O2 utilisé</th>
+                <th>Prix</th>
+                <th>Statut</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($gonflages as $g): ?>
+            <tr>
+                <td><?php echo htmlspecialchars($g['date_gonflage'], ENT_QUOTES, 'UTF-8'); ?></td>
+                <td><?php echo htmlspecialchars($g['proprietaire'], ENT_QUOTES, 'UTF-8'); ?></td>
+                <td><?php echo htmlspecialchars($g['volume_bloc'], ENT_QUOTES, 'UTF-8'); ?> L</td>
+                <td><?php echo htmlspecialchars($g['litres_o2_utilises'], ENT_QUOTES, 'UTF-8'); ?> L</td>
+                <td><?php echo htmlspecialchars($g['prix_facture'], ENT_QUOTES, 'UTF-8'); ?> €</td>
+                <td class="<?php echo $g['paye'] ? 'status-ok' : 'status-no'; ?>">
+                    <strong><?php echo $g['paye'] ? 'Payé' : 'À payer'; ?></strong>
+                </td>
+                <td>
+                    <?php if (!$g['paye']): ?>
+                        <a href="liste.php?paye=<?php echo (int)$g['id']; ?>"
+                           class="btn-action btn-success"
+                           onclick="return confirm('Confirmer le paiement pour <?php echo addslashes(htmlspecialchars($g['proprietaire'])); ?> ?')"
+                           style="padding: 5px 10px; font-size: 0.8em; text-decoration: none;">
+                           Marquer payé
+                        </a>
+                    <?php endif; ?>
+                </td>
+            </tr>
+            <?php endforeach; ?>
+        </tbody>
     </table>
+    </div>
 </body>
 </html>
