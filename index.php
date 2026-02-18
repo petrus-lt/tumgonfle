@@ -25,13 +25,13 @@ if (isset($_POST['valider_enregistrement'])) {
 // 2. Logique de calcul
 $resultat = null;
 if (isset($_POST['calculer'])) {
-    $nom_pers = htmlspecialchars($_POST['proprietaire']);
-    $v_bloc = $_POST['v_bloc'];
-    $p_init = $_POST['p_init'];
-    $p_cible = $_POST['p_cible'];
-    $f_init = $_POST['f_init'];
-    $f_cible = $_POST['f_cible'];
-    $prix_litre = $_POST['prix_o2'];
+    $nom_pers = $_POST['proprietaire'];
+    $v_bloc = filter_input(INPUT_POST, 'v_bloc', FILTER_VALIDATE_FLOAT);
+    $p_init = filter_input(INPUT_POST, 'p_init', FILTER_VALIDATE_FLOAT);
+    $p_cible = filter_input(INPUT_POST, 'p_cible', FILTER_VALIDATE_FLOAT);
+    $f_init = filter_input(INPUT_POST, 'f_init', FILTER_VALIDATE_FLOAT);
+    $f_cible = filter_input(INPUT_POST, 'f_cible', FILTER_VALIDATE_FLOAT);
+    $prix_litre = filter_input(INPUT_POST, 'prix_o2', FILTER_VALIDATE_FLOAT);
 
     // Calcul : On cherche le volume d'O2 pur a ajouter pour atteindre la cible
     // Formule simplifiée pour complément O2 pur puis Air (0.21)
@@ -74,25 +74,25 @@ if (isset($_POST['calculer'])) {
     <h2>Calcul de gonflage Nitrox (O2 Pur + Air)</h2>
     <form method="post">
         <label>Propriétaire du bloc :</label>
-        <input type="text" name="proprietaire" value="<?php echo $nom_pers; ?>" placeholder="Nom du plongeur" required>
+        <input type="text" name="proprietaire" value="<?php echo htmlspecialchars($nom_pers, ENT_QUOTES, 'UTF-8'); ?>" placeholder="Nom du plongeur" required>
 
         <label>Prix de l'O2 (au litre) :</label>
-        <input type="number" step="0.001" name="prix_o2" value="<?php echo $prix_o2; ?>" required>
+        <input type="number" step="0.001" name="prix_o2" value="<?php echo htmlspecialchars($prix_o2, ENT_QUOTES, 'UTF-8'); ?>" required>
 
         <label>Volume du bloc (ex: 5.6, 11.1, 12) :</label>
-        <input type="number" step="0.1" name="v_bloc" value="<?php echo $v_bloc; ?>" required>
+        <input type="number" step="0.1" name="v_bloc" value="<?php echo htmlspecialchars($v_bloc, ENT_QUOTES, 'UTF-8'); ?>" required>
 
         <label>Pression Initiale (Bar) :</label>
-        <input type="number" name="p_init" value="<?php echo $p_init; ?>" required>
+        <input type="number" name="p_init" value="<?php echo htmlspecialchars($p_init, ENT_QUOTES, 'UTF-8'); ?>" required>
 
         <label>Pression Cible (Bar) :</label>
-        <input type="number" name="p_cible" value="<?php echo $p_cible; ?>" required>
+        <input type="number" name="p_cible" value="<?php echo htmlspecialchars($p_cible, ENT_QUOTES, 'UTF-8'); ?>" required>
 
         <label>% O2 Initial :</label>
-        <input type="number" name="f_init" value="<?php echo $f_init; ?>" required>
+        <input type="number" name="f_init" value="<?php echo htmlspecialchars($f_init, ENT_QUOTES, 'UTF-8'); ?>" required>
 
         <label>% O2 Cible :</label>
-        <input type="number" name="f_cible" value="<?php echo $f_cible; ?>" required>
+        <input type="number" name="f_cible" value="<?php echo htmlspecialchars($f_cible, ENT_QUOTES, 'UTF-8'); ?>" required>
 
         <button type="submit" name="calculer">Calculer</button>
     </form>
@@ -108,10 +108,10 @@ if (isset($_POST['calculer'])) {
         <p>Prix : <b><?php echo $resultat['prix']; ?> €</b></p>
         
         <form method="post">
-            <input type="hidden" name="nom" value="<?php echo $resultat['nom']; ?>">
-            <input type="hidden" name="o2_calc" value="<?php echo $resultat['o2']; ?>">
-            <input type="hidden" name="prix_calc" value="<?php echo $resultat['prix']; ?>">
-            <input type="hidden" name="vol_bloc" value="<?php echo $resultat['v_bloc']; ?>">
+            <input type="hidden" name="nom" value="<?php echo htmlspecialchars($resultat['nom'], ENT_QUOTES, 'UTF-8'); ?>">
+            <input type="hidden" name="o2_calc" value="<?php echo htmlspecialchars($resultat['o2'], ENT_QUOTES, 'UTF-8'); ?>">
+            <input type="hidden" name="prix_calc" value="<?php echo htmlspecialchars($resultat['prix'], ENT_QUOTES, 'UTF-8'); ?>">
+            <input type="hidden" name="vol_bloc" value="<?php echo htmlspecialchars($resultat['v_bloc'], ENT_QUOTES, 'UTF-8'); ?>">
             <button type="submit" name="valider_enregistrement" style="background: #28a745;">Valider et Facturer</button>
         </form>
     </div>

@@ -3,7 +3,7 @@
 $host = 'localhost';
 $db   = 'gonflages_db';
 $user = 'gonflageuser';
-$pass = 'deiv!twyHort4';
+$pass = 'monsuperpass';
 $dsn  = "mysql:host=$host;dbname=$db;charset=utf8mb4";
 
 try {
