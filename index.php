@@ -19,37 +19,60 @@ if (isset($_POST['valider_enregistrement'])) {
         $_POST['o2_calc'],
         $_POST['prix_calc']
     ]);
-    echo "<p style='color:green;'>Enregistrement réussi !</p>";
+    echo "<p style='color:green; text-align:center;'>Enregistrement réussi !</p>";
 }
 
 // 2. Logique de calcul
 $resultat = null;
+$erreurs = [];
+
 if (isset($_POST['calculer'])) {
     $nom_pers = $_POST['proprietaire'];
-    $v_bloc = filter_input(INPUT_POST, 'v_bloc', FILTER_VALIDATE_FLOAT);
-    $p_init = filter_input(INPUT_POST, 'p_init', FILTER_VALIDATE_FLOAT);
-    $p_cible = filter_input(INPUT_POST, 'p_cible', FILTER_VALIDATE_FLOAT);
-    $f_init = filter_input(INPUT_POST, 'f_init', FILTER_VALIDATE_FLOAT);
-    $f_cible = filter_input(INPUT_POST, 'f_cible', FILTER_VALIDATE_FLOAT);
-    $prix_litre = filter_input(INPUT_POST, 'prix_o2', FILTER_VALIDATE_FLOAT);
+    $v_bloc     = (float)$_POST['v_bloc'];
+    $p_init     = (float)$_POST['p_init'];
+    $p_cible    = (float)$_POST['p_cible'];
+    $f_init     = (float)$_POST['f_init'];
+    $f_cible    = (float)$_POST['f_cible'];
+    $prix_litre = (float)$_POST['prix_o2'];
 
-    // Calcul : On cherche le volume d'O2 pur a ajouter pour atteindre la cible
-    // Formule simplifiée pour complément O2 pur puis Air (0.21)
-    $pression_o2_a_ajouter = (($p_cible * ($f_cible/100)) - ($p_init * ($f_init/100)) - 0.21 * ($p_cible - $p_init)) / (1 - 0.21);
+    // --- Sécurités métier ---
+    if ($p_init >= $p_cible) {
+        $erreurs[] = "La pression initiale doit être inférieure à la pression cible.";
+    }
+    if ($p_cible > 300) {
+        $erreurs[] = "La pression cible ne peut pas dépasser 300 bars (limite matériel).";
+    }
+    if ($f_init > $f_cible) {
+        $erreurs[] = "Le mélange initial est déjà plus riche que la cible. Impossible par ajout d'O2.";
+    }
+    if ($f_cible < 21 || $f_cible > 100) {
+        $erreurs[] = "Le pourcentage cible doit être entre 21% et 100%.";
+    }
 
-    // Sécurité : si le calcul donne < 0 (mélange impossible par ajout d'O2)
-    $pression_o2_a_ajouter = max(0, $pression_o2_a_ajouter);
-    $litres_o2 = $pression_o2_a_ajouter * $v_bloc;
-    $prix_total = $litres_o2 * $prix_litre;
-    
-    $resultat = [
-        'p_o2' => round($pression_o2_a_ajouter, 1),
-        'p_fin_o2' => round($p_init + $pression_o2_a_ajouter, 1), // Pression a laquelle on arrête l'O2
-        'o2' => round($litres_o2, 2),
-        'prix' => round($prix_total, 2),
-        'nom' => $nom_pers,
-        'v_bloc' => $v_bloc
-    ];
+    if (empty($erreurs)) {
+        // Calcul : On cherche le volume d'O2 pur a ajouter pour atteindre la cible
+        // Formule : P_o2 = (P_cible*F_cible - P_init*F_init - 0.21*(P_cible - P_init)) / (1 - 0.21)
+        $pression_o2_a_ajouter = (($p_cible * ($f_cible/100)) - ($p_init * ($f_init/100)) - 0.21 * ($p_cible - $p_init)) / (1 - 0.21);
+
+        $pression_o2_a_ajouter = max(0, $pression_o2_a_ajouter);
+        $litres_o2 = $pression_o2_a_ajouter * $v_bloc;
+        $prix_total = $litres_o2 * $prix_litre;
+
+        $resultat = [
+            'p_o2' => round($pression_o2_a_ajouter, 1),
+            'p_fin_o2' => round($p_init + $pression_o2_a_ajouter, 1),
+            'o2' => round($litres_o2, 2),
+            'prix' => round($prix_total, 2),
+            'nom' => $nom_pers,
+            'v_bloc' => $v_bloc
+        ];
+
+        // Vérification finale : est-ce que l'O2 nécessaire dépasse la pression finale ?
+        if ($resultat['p_fin_o2'] > $p_cible) {
+            $erreurs[] = "Mélange impossible : la quantité d'O2 pur requise dépasse la pression cible.";
+            $resultat = null;
+        }
+    }
 }
 ?>
 
@@ -72,6 +95,18 @@ if (isset($_POST['calculer'])) {
 
 <div class="container">
     <h2>Calcul de gonflage Nitrox (O2 Pur + Air)</h2>
+
+    <?php if (!empty($erreurs)): ?>
+        <div class="error-box">
+            <strong>Erreur de saisie :</strong>
+            <ul>
+                <?php foreach($erreurs as $e): ?>
+                    <li><?php echo htmlspecialchars($e, ENT_QUOTES, 'UTF-8'); ?></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
+
     <form method="post">
         <label>Propriétaire du bloc :</label>
         <input type="text" name="proprietaire" value="<?php echo htmlspecialchars($nom_pers, ENT_QUOTES, 'UTF-8'); ?>" placeholder="Nom du plongeur" required>
@@ -102,7 +137,7 @@ if (isset($_POST['calculer'])) {
         <h3>Résultat :</h3>
         <p>1. Ajouter <b><?php echo $resultat['p_o2']; ?> bar</b> d'O2 pur.</p>
         <p>2. Arrêter l'O2 à <b><?php echo $resultat['p_fin_o2']; ?> bar</b>.</p>
-        <p>3. Compléter à l'air jusqu'à <b><?php echo $_POST['p_cible']; ?> bar</b>.</p>
+        <p>3. Compléter à l'air jusqu'à <b><?php echo htmlspecialchars($_POST['p_cible'], ENT_QUOTES, 'UTF-8'); ?> bar</b>.</p>
         <hr>
         <p>Total O2 : <?php echo $resultat['o2']; ?> Litres</p>
         <p>Prix : <b><?php echo $resultat['prix']; ?> €</b></p>
