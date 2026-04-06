@@ -40,10 +40,7 @@ if (isset($_POST['calculer'])) {
         $erreurs[] = "La pression initiale doit être inférieure à la pression cible.";
     }
     if ($p_cible > 300) {
-        $erreurs[] = "La pression cible ne peut pas dépasser 300 bars (limite matériel).";
-    }
-    if ($f_init > $f_cible) {
-        $erreurs[] = "Le mélange initial est déjà plus riche que la cible. Impossible par ajout d'O2.";
+        $erreurs[] = "La pression cible ne doit pas dépasser 300 bars.";
     }
     if ($f_cible < 21 || $f_cible > 100) {
         $erreurs[] = "Le pourcentage cible doit être entre 21% et 100%.";
