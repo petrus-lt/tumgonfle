@@ -31,7 +31,7 @@ Enter password:
 
 * Copie des fichiers vers le serveur web : 
 
-[source,console
+[source,console]
 ----
 $ sudo mkdir /var/www/htdocs/gonflage
 $ sudo install -m 640 db.php /var/www/htdocs/gonflage/
