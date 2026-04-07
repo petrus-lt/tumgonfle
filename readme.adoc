@@ -11,3 +11,30 @@ Ce projet est une application web legere permettant de calculer les melanges Nit
 * Suivi des paiements : interface pour marquer les factures comme payees.
 * Statistiques : filtres par mois et par an pour la consommation d'O2.
 * Export : generation de rapports au format CSV.
+
+== Installation
+
+* Création d'un mot de passe unique pour l'utilisateur de bdd :
+
+[source,console]
+----
+$ sed -i "s/monsuperpass/$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 13)/g" db.php createdb.sql
+----
+
+* Construction de la base de données
+
+[source,console]
+----
+$ mysql -u root -p < createdb.sql 
+Enter password: 
+----
+
+* Copie des fichiers vers le serveur web : 
+
+[source,console
+----
+$ sudo mkdir /var/www/htdocs/gonflage
+$ sudo install -m 640 db.php /var/www/htdocs/gonflage/
+$ sudo cp *.php /var/www/htdocs/gonflage/
+$ sudo cp style.css /var/www/htdocs/gonflage/
+----
