@@ -8,7 +8,7 @@ $p_init = "0";
 $f_init = "21";
 $p_cible = "200";
 $f_cible = "50";
-$prix_o2 = "0.01";
+$prix_o2 = "10";
 
 // 1. Logique d'enregistrement
 if (isset($_POST['valider_enregistrement'])) {
@@ -33,7 +33,7 @@ if (isset($_POST['calculer'])) {
     $p_cible    = (float)$_POST['p_cible'];
     $f_init     = (float)$_POST['f_init'];
     $f_cible    = (float)$_POST['f_cible'];
-    $prix_litre = (float)$_POST['prix_o2'];
+    $prix_m3 = (float)$_POST['prix_o2'];
 
     // --- Sécurités métier ---
     if ($p_init < 0) {
@@ -51,7 +51,7 @@ if (isset($_POST['calculer'])) {
     if ($f_cible < 21 || $f_cible > 100) {
         $erreurs[] = "Le pourcentage cible doit être entre 21% et 100%.";
     }
-    if ($prix_litre < 0) {
+    if ($prix_m3 < 0) {
         $erreurs[] = "Le prix ne peut être négatif.";
     }
     if ($v_bloc < 0 ) {
@@ -65,7 +65,7 @@ if (isset($_POST['calculer'])) {
 
         $pression_o2_a_ajouter = max(0, $pression_o2_a_ajouter);
         $litres_o2 = $pression_o2_a_ajouter * $v_bloc;
-        $prix_total = $litres_o2 * $prix_litre;
+        $prix_total = ($litres_o2 / 1000) * $prix_m3;
 
         $resultat = [
             'p_o2' => round($pression_o2_a_ajouter, 1),
@@ -120,8 +120,8 @@ if (isset($_POST['calculer'])) {
         <label>Propriétaire du bloc :</label>
         <input type="text" name="proprietaire" value="<?php echo htmlspecialchars($nom_pers, ENT_QUOTES, 'UTF-8'); ?>" placeholder="Nom du plongeur" required>
 
-        <label>Prix de l'O2 (au litre) :</label>
-        <input type="number" step="0.001" name="prix_o2" value="<?php echo htmlspecialchars($prix_o2, ENT_QUOTES, 'UTF-8'); ?>" required>
+        <label>Prix de l'O2 (au m³) :</label>
+        <input type="number" step="0.1" name="prix_o2" value="<?php echo htmlspecialchars($prix_o2, ENT_QUOTES, 'UTF-8'); ?>" required>
 
         <label>Volume du bloc (ex: 5.6, 11.1, 12) :</label>
         <input type="number" step="0.1" name="v_bloc" value="<?php echo htmlspecialchars($v_bloc, ENT_QUOTES, 'UTF-8'); ?>" required>
