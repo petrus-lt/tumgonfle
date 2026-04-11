@@ -36,14 +36,26 @@ if (isset($_POST['calculer'])) {
     $prix_litre = (float)$_POST['prix_o2'];
 
     // --- Sécurités métier ---
+    if ($p_init < 0) {
+        $erreurs[] = "La pression initiale doit être positive.";
+    }
     if ($p_init >= $p_cible) {
         $erreurs[] = "La pression initiale doit être inférieure à la pression cible.";
     }
     if ($p_cible > 300) {
         $erreurs[] = "La pression cible ne doit pas dépasser 300 bars.";
     }
+    if ($f_init < 21 || $f_init > 100) {
+        $erreurs[] = "Le pourcentage initial doit être entre 21% et 100%.";
+    }
     if ($f_cible < 21 || $f_cible > 100) {
         $erreurs[] = "Le pourcentage cible doit être entre 21% et 100%.";
+    }
+    if ($prix_litre < 0) {
+        $erreurs[] = "Le prix ne peut être négatif.";
+    }
+    if ($v_bloc < 0 ) {
+        $erreurs[] = "Le volume du bloc ne peut être négatif.";
     }
 
     if (empty($erreurs)) {
