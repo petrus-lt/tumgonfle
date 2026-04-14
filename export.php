@@ -32,6 +32,7 @@ try {
     exit;
 
 } catch (PDOException $e) {
-    die("Erreur : " . $e->getMessage());
+    error_log("Erreur DB : " . $e->getMessage());
+    die("Erreur de connexion : voir les logs");
 }
 ?>
