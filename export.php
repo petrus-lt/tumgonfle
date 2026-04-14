@@ -10,7 +10,7 @@ try {
     $filename = "factures_gonflage_" . date('Y-m-d') . ".csv";
     
     header('Content-Type: text/csv; charset=utf-8');
-    header('Content-Disposition: attachment; filename=' . $filename);
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
 
     // 3. Création du fichier CSV
     $output = fopen('php://output', 'w');
