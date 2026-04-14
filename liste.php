@@ -1,9 +1,9 @@
 <?php
 require 'db.php';
 
-// Sécurisation de la mise à jour : on force l'ID en entier
-if (isset($_GET['paye'])) {
-    $id_a_payer = (int)$_GET['paye'];
+// Sécurisation de la mise à jour : on passe en POST
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['paye'])) {
+    $id_a_payer = (int)$_POST['paye'];
     if ($id_a_payer > 0) {
         $stmt = $pdo->prepare("UPDATE gonflages SET paye = 1 WHERE id = ?");
         $stmt->execute([$id_a_payer]);
@@ -15,8 +15,8 @@ if (isset($_GET['paye'])) {
 }
 
 // Traitement du paiement groupé
-if (isset($_GET['paye_groupe'])) {
-    $nom_client = $_GET['paye_groupe'];
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['paye_groupe'])) {
+    $nom_client = $_POST['paye_groupe'];
     $stmt = $pdo->prepare("UPDATE gonflages SET paye = 1 WHERE proprietaire = ? AND paye = 0");
     $stmt->execute([$nom_client]);
     header("Location: liste.php");
@@ -67,11 +67,12 @@ $dettes = $pdo->query("SELECT proprietaire, SUM(prix_facture) as total_du
                 <td><strong><?php echo htmlspecialchars($d['proprietaire'], ENT_QUOTES, 'UTF-8'); ?></strong></td>
                 <td style="color: #d9534f; font-weight: bold;"><?php echo number_format($d['total_du'], 2); ?> €</td>
                 <td>
-                    <a href="liste.php?paye_groupe=<?php echo urlencode($d['proprietaire']); ?>"
-                       class="btn-action btn-success"
-                       onclick="return confirm('Régler la totalité des factures pour <?php echo addslashes(htmlspecialchars($d['proprietaire'])); ?> ?')">
-                       Tout régler
-                    </a>
+                    <form method="POST" action="liste.php" onsubmit="return confirm('Régler la totalité des factures pour <?php echo addslashes(htmlspecialchars($d['proprietaire'])); ?> ?')" style="display:inline;">
+                        <input type="hidden" name="paye_groupe" value="<?php echo htmlspecialchars($d['proprietaire'], ENT_QUOTES, 'UTF-8'); ?>">
+                        <button type="submit" class="btn-action btn-success" style="cursor:pointer; border:none;">
+                            Tout régler
+                        </button>
+                    </form>
                 </td>
             </tr>
             <?php endforeach; ?>
@@ -106,12 +107,12 @@ $dettes = $pdo->query("SELECT proprietaire, SUM(prix_facture) as total_du
                 </td>
                 <td>
                     <?php if (!$g['paye']): ?>
-                        <a href="liste.php?paye=<?php echo (int)$g['id']; ?>"
-                           class="btn-action btn-success"
-                           onclick="return confirm('Confirmer le paiement pour <?php echo addslashes(htmlspecialchars($g['proprietaire'])); ?> ?')"
-                           style="padding: 5px 10px; font-size: 0.8em; text-decoration: none;">
-                           Marquer payé
-                        </a>
+                        <form method="POST" action="liste.php" onsubmit="return confirm('Confirmer le paiement pour <?php echo addslashes(htmlspecialchars($g['proprietaire'])); ?> ?')" style="display:inline;">
+                            <input type="hidden" name="paye" value="<?php echo (int)$g['id']; ?>">
+                            <button type="submit" class="btn-action btn-success" style="padding: 5px 10px; font-size: 0.8em; cursor:pointer; border:none;">
+                                Marquer payé
+                            </button>
+                        </form>
                     <?php endif; ?>
                 </td>
             </tr>
