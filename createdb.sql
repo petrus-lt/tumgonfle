@@ -12,6 +12,6 @@ CREATE TABLE IF NOT EXISTS gonflages (
 );
 
 CREATE USER 'gonflageuser'@'localhost' IDENTIFIED BY 'monsuperpass';
-GRANT CREATE, ALTER, INSERT, UPDATE, DELETE, SELECT, REFERENCES on gonflages_db.* TO 'gonflageuser'@'localhost' WITH GRANT OPTION;
+GRANT INSERT, UPDATE, SELECT on gonflages_db.* TO 'gonflageuser'@'localhost';
 FLUSH PRIVILEGES;
 
