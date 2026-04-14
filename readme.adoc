@@ -34,7 +34,7 @@ Enter password:
 [source,console]
 ----
 $ sudo mkdir /var/www/htdocs/gonflage
+$ sudo install -m 644 *.php /var/www/htdocs/gonflage/
 $ sudo install -m 640 db.php /var/www/htdocs/gonflage/
-$ sudo cp *.php /var/www/htdocs/gonflage/
-$ sudo cp style.css /var/www/htdocs/gonflage/
+$ sudo install -m 644 style.css /var/www/htdocs/gonflage/
 ----
