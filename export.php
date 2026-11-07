@@ -22,9 +22,18 @@ try {
     fputcsv($output, ['Date', 'Propriétaire', 'Volume Bloc (L)', 'O2 utilisé (L)', 'Prix (€)', 'Statut Paiement'], ';');
 
     // Données
+    // Anti "CSV injection" : un nom de client commençant par = + - @ serait
+    // évalué comme formule par Excel à l'ouverture du fichier. On préfixe
+    // ces champs d'une apostrophe pour forcer le format texte.
+    $csv_safe = function ($v) {
+        $v = (string)$v;
+        return ($v !== '' && strpos("=+-@\t\r", $v[0]) !== false) ? "'" . $v : $v;
+    };
+
     foreach ($rows as $row) {
         // Transformation du booléen paye en texte
         $row['paye'] = $row['paye'] ? 'Payé' : 'À payer';
+        $row = array_map($csv_safe, $row);
         fputcsv($output, $row, ';');
     }
 
