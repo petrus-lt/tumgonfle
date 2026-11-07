@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS gonflages (
     id INT AUTO_INCREMENT PRIMARY KEY,
     date_gonflage TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     proprietaire VARCHAR(100),
-    volume_bloc INT,
+    volume_bloc DECIMAL(6,2),
     litres_o2_utilises FLOAT,
     prix_facture FLOAT,
     paye BOOLEAN DEFAULT FALSE
