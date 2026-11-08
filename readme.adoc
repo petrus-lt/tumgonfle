@@ -5,12 +5,38 @@ Ce projet est une application web legere permettant de calculer les melanges Nit
 
 == Fonctionnalites
 
-* Calculateur de melange : determine la pression d'O2 a ajouter et la pression d'arrêt avant complement a l'air.
+* Calculateur de melange : enrichissement par ajout d'O2 pur, ou appauvrissement par vidange partielle et complement a l'air.
 * Gestion des blocs : supporte les volumes avec decimales (ex: S40 de 5.6L).
 * Facturation : enregistrement automatique dans une base de donnees MySQL.
 * Suivi des paiements : interface pour marquer les factures comme payees.
 * Statistiques : filtres par mois et par an pour la consommation d'O2.
 * Export : generation de rapports au format CSV.
+
+== Methodes de calcul
+
+Le moteur de calcul vit dans ``calcul.php`` (fonction ``calcul_melange``), separe de l'affichage de ``index.php`` pour etre testable seul. Il choisit la methode selon le pourcentage d'O2 voulu (F_cible) par rapport a celui du bloc (F_init) :
+
+* Enrichissement (F_cible > F_init) : on ajoute de l'O2 pur jusqu'a une pression d'arret, puis on complete a l'air. Formule : P_o2 = (P_cible*F_cible - P_init*F_init - 0.21*(P_cible - P_init)) / 0.79.
+* Appauvrissement par dilution (F_cible < F_init) : on vide le bloc jusqu'a la pression de coupure P_cut = P_cible * (F_cible - 0.21) / (F_init - 0.21), puis on complete a l'air. Exemple : 200 bar d'EAN50 converti en EAN32 a 200 bar => vidanger vers 76 bar. Si la pression de depart est inferieure a P_cut, le melange est infaisable avec seulement O2 et air. L'O2 "achete" est nul ; le volume d'O2 rejete a la vidange est affiche a titre indicatif.
+* Melange constant (F_cible = F_init) : simple vidange si la pression de depart depasse la cible, sinon la formule d'enrichissement reste correcte (F_cible = F_init).
+
+Le complement d'air des methodes dilution et vidange n'est pas facture par le calcul (O2 = 0 L, prix = 0 EUR).
+
+[WARNING]
+====
+Toutes les formules supposent des gaz parfaits. Aux pressions de gonflage, un calculateur en gaz reel (correction de compressibilite) indique quelques bars de moins a la vidange : sur l'exemple EAN50 -> EAN32 a 200 bar, environ 72 bar au lieu de 76. Ces valeurs sont indicatives ; l'analyse du melange final a l'analyseur de gaz reste obligatoire avant usage.
+====
+
+== Tests
+
+Suite de non-regression du calcul (enrichissement, dilution, cas limites et erreurs de saisie), sans base de donnees ni navigateur :
+
+[source,console]
+----
+$ php tests/test_calcul.php
+----
+
+Doit afficher "Tous les tests passent" avec un code retour 0. Les tests ne sont pas copies sur le serveur web (voir Installation).
 
 == Installation
 
