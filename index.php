@@ -10,6 +10,7 @@ $f_init = "21";
 $p_cible = "200";
 $f_cible = "50";
 $prix_o2 = "10";
+$modele = "ideale";
 
 // 1. Logique d'enregistrement
 if (isset($_POST['valider_enregistrement'])) {
@@ -38,6 +39,7 @@ if (isset($_POST['calculer'])) {
     $f_init     = (float)$_POST['f_init'];
     $f_cible    = (float)$_POST['f_cible'];
     $prix_m3 = (float)$_POST['prix_o2'];
+    $modele = (($_POST['modele'] ?? 'ideale') === 'reel') ? 'reel' : 'ideale';
 
     $calc = calcul_melange([
         'nom'     => $nom_pers,
@@ -47,6 +49,7 @@ if (isset($_POST['calculer'])) {
         'f_init'  => $f_init,
         'f_cible' => $f_cible,
         'prix_o2' => $prix_m3,
+        'modele'  => $modele,
     ]);
     $resultat = $calc['resultat'];
     $erreurs  = $calc['erreurs'];
@@ -106,6 +109,12 @@ if (isset($_POST['calculer'])) {
         <label>% O2 Cible :</label>
         <input type="number" name="f_cible" value="<?php echo htmlspecialchars($f_cible, ENT_QUOTES, 'UTF-8'); ?>" required>
 
+        <label>Modèle de gaz :</label>
+        <select name="modele">
+            <option value="ideale" <?php echo $modele === 'ideale' ? 'selected' : ''; ?>>Gaz parfait</option>
+            <option value="reel" <?php echo $modele === 'reel' ? 'selected' : ''; ?>>Gaz réel (coeff. de compressibilité, comme Subsurface)</option>
+        </select>
+
         <button type="submit" name="calculer">Calculer</button>
     </form>
 
@@ -119,7 +128,7 @@ if (isset($_POST['calculer'])) {
         <?php elseif ($resultat['methode'] === 'dilution'): ?>
             <p>1. Vidanger le bloc jusqu'à <b><?php echo $resultat['p_cut']; ?> bar</b> (le mélange reste à <?php echo htmlspecialchars((string)$resultat['f_init'], ENT_QUOTES, 'UTF-8'); ?>% O2).</p>
             <p>2. Compléter à l'air jusqu'à <b><?php echo htmlspecialchars((string)$resultat['p_cible'], ENT_QUOTES, 'UTF-8'); ?> bar</b>.</p>
-            <p>Air ajouté : <?php echo round(($resultat['p_cible'] - $resultat['p_cut']) * $resultat['v_bloc']); ?> L.</p>
+            <p>Air ajouté : <?php echo $resultat['air_ajoute']; ?> L.</p>
             <p><b>Attention</b> : cette méthode rejette environ <b><?php echo $resultat['o2_gache']; ?> L d'O2</b> à la vidange.</p>
         <?php else: ?>
             <p>Vider le bloc jusqu'à <b><?php echo $resultat['p_cut']; ?> bar</b> : le mélange est inchangé (<?php echo htmlspecialchars((string)$resultat['f_init'], ENT_QUOTES, 'UTF-8'); ?>% O2).</p>
@@ -128,6 +137,7 @@ if (isset($_POST['calculer'])) {
         <hr>
         <p>Total O2 : <?php echo $resultat['o2']; ?> Litres</p>
         <p>Prix : <b><?php echo $resultat['prix']; ?> €</b></p>
+        <p><i>Modèle : <?php echo $resultat['modele'] === 'reel' ? 'gaz réel (facteur de compressibilité, hypothèse température ambiante constante — remplir lentement et laisser refroidir)' : 'gaz parfait'; ?>.</i></p>
         <?php if ($resultat['methode'] !== 'o2'): ?>
         <p><i>Le complément d'air comprimé n'est pas facturé par ce calcul.</i></p>
         <?php endif; ?>

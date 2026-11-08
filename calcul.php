@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/gaz_reel.php';
+
 // calcul.php
 // Moteur de calcul des mélanges nitrox (O2 pur + air), séparé de l'affichage
 // pour pouvoir être testé sans base de données ni navigateur
@@ -22,6 +24,8 @@
  *   'f_init'   % d'O2 du mélange de départ (21 à 100)
  *   'f_cible'  % d'O2 du mélange voulu (21 à 100)
  *   'prix_o2'  prix de l'O2 au m3 (sert à facturer l'O2 ajouté)
+ *   'modele'   'ideale' (gaz parfait, défaut) ou 'reel' (facteur de
+ *              compressibilité, modèle Subsurface/realblender, gaz_reel.php)
  *   'nom'      nom du client, retransmis tel quel
  *
  * Sortie : ['resultat' => array|null, 'erreurs' => string[]]
@@ -40,6 +44,9 @@ function calcul_melange(array $entree): array
     $f_init  = (float)($entree['f_init'] ?? 0);
     $f_cible = (float)($entree['f_cible'] ?? 0);
     $prix_m3 = (float)($entree['prix_o2'] ?? 0);
+    // Modèle de gaz : 'ideale' = gaz parfait (comportement historique,
+    // défaut), 'reel' = correction par le facteur de compressibilité Z.
+    $modele = (($entree['modele'] ?? 'ideale') === 'reel') ? 'reel' : 'ideale';
 
     $resultat = null;
     $erreurs  = [];
@@ -74,48 +81,71 @@ function calcul_melange(array $entree): array
         // sont considérés identiques (pas de vidange ni d'ajout d'O2 "utile").
         $eps = 0.001;
 
+        // --- Grandeurs "normales" : la quantité de matière, conservée ---
+        // En GAZ PARFAIT, le nombre de moles est proportionnel à p*V : tout se
+        // ramène aux pressions (quantité = pression en "bar-litres").
+        // En GAZ RÉEL, on exprime les quantités en litres normaux
+        //   q(p, mélange) = p * Z(1) / Z(p)
+        // et on retrouve la pression correspondant à une quantité par
+        // l'inversion itérative find_p() (voir gaz_reel.php). Les bilans
+        // d'O2 ci-dessous sont alors RIGOUREUSEMENT les mêmes, ils portent
+        // sur q au lieu de p.
+        $q_norm = function (float $pression, float $fraction) use ($modele): float {
+            return $modele === 'reel' ? quantite_normale($pression, $fraction) : $pression;
+        };
+        $vers_pression = function (float $fraction, float $quantite) use ($modele): float {
+            return $modele === 'reel' ? pression_pour_quantite($fraction, $quantite) : $quantite;
+        };
+
+        $q_i = $q_norm($p_init, $f_i);    // quantité de gaz au départ
+        $q_f = $q_norm($p_cible, $f_t);   // quantité de gaz à la cible
+
         if ($f_t < $f_i - $eps) {
             // ===== Méthode "dilution" : on veut MOINS d'O2 que le départ. =====
             // On ne peut pas retirer l'O2 sélectivement ; on vide donc une
             // partie du bloc (la fraction d'O2 du gaz RESTANT ne change pas
             // pendant la vidange), puis on complète à l'air (21% d'O2).
             //
-            // Équilibre de l'O2 en bar-litres à la pression cible
-            // (V = volume du bloc, factorisé de part et d'autre) :
-            //   F_cible*P_cible = F_init*P_cut + 0.21*(P_cible - P_cut)
+            // Équilibre de l'O2 en quantités conservées :
+            //   F_cible*q_cible = F_init*q_cut + 0.21*(q_cible - q_cut)
             //                     ^O2 restant    ^O2 amené par l'air ajouté
-            // On isole la pression de vidange (de coupure) P_cut :
-            //   P_cut*(F_init - 0.21) = P_cible*(F_cible - 0.21)
-            //   P_cut = P_cible * (F_cible - 0.21) / (F_init - 0.21)
+            // On isole la quantité à conserver, puis sa pression de coupure :
+            //   q_cut = q_cible * (F_cible - 0.21) / (F_init - 0.21)
+            //   p_cut = pression(q_cut, mélange de départ)
             //
             // Exemple : 200 bar d'EAN50 que l'on veut convertir en EAN32 à
-            // 200 bar : P_cut = 200 * (0.32-0.21)/(0.50-0.21)
-            //                  = 200 * 0.11/0.29 ≈ 75.9 bar (gaz parfait ;
-            // en gaz réel un calculateur certifié descend vers ~72 bar).
-            $p_cut = ($p_cible * ($f_t - $air)) / ($f_i - $air);
+            // 200 bar. Gaz parfait : p_cut = 200 * 0.11/0.29 ≈ 75.9 bar.
+            // Gaz réel : q_cible ≈ 195.1 NL par litre de bloc, q_cut ≈ 74.0,
+            // d'où p_cut ≈ 72.6 bar (l'écart vient de ce que l'EAN50 se
+            // comprime différemment de l'EAN32 aux hautes pressions).
+            $q_cut = $q_f * ($f_t - $air) / ($f_i - $air);
+            $p_cut = $vers_pression($f_i, $q_cut);
 
             // Faisabilité : il faut assez de mélange riche au départ.
-            // En dessous de P_cut bar de départ, même en vidant au maximum il
-            // manquerait de l'O2 pour atteindre F_cible avec de l'air seul.
-            if ($p_init < $p_cut) {
+            // En dessous de q_cut (soit ~p_cut bar), même en vidant au
+            // maximum il manquerait de l'O2 pour atteindre F_cible avec de
+            // l'air seul.
+            if ($q_i < $q_cut) {
                 $erreurs[] = "Mélange impossible : il faudrait au moins " . round($p_cut) . " bar de départ pour appauvrir à " . round($f_cible) . "% en complétant à l'air.";
             } else {
                 // Rien n'est "acheté" dans cette méthode : seul de l'air est
                 // ajouté (non facturé ici). Le gaz jeté à la vidange est
                 // chiffré en litres d'O2 gazeux perdus, à titre indicatif.
                 $resultat = [
-                    'methode'  => 'dilution',
-                    'p_cut'    => round($p_cut, 1),           // vidanger jusqu'ici
-                    'p_cible'  => $p_cible,                   // compléter jusqu'ici
-                    'f_init'   => $f_init,
-                    'o2'       => 0.0,                        // pas d'O2 ajouté
-                    'prix'     => 0.0,                        // air non facturé
-                    'o2_gache' => round($f_i * ($p_init - $p_cut) * $v_bloc, 1),
-                    'nom'      => $nom,
-                    'v_bloc'   => $v_bloc,
+                    'methode'    => 'dilution',
+                    'modele'     => $modele,
+                    'p_cut'      => round($p_cut, 1),           // vidanger jusqu'ici
+                    'p_cible'    => $p_cible,                   // compléter jusqu'ici
+                    'f_init'     => $f_init,
+                    'o2'         => 0.0,                        // pas d'O2 ajouté
+                    'prix'       => 0.0,                        // air non facturé
+                    'air_ajoute' => round(($q_f - $q_cut) * $v_bloc, 1), // litres normaux d'air
+                    'o2_gache'   => round($f_i * ($q_i - $q_cut) * $v_bloc, 1),
+                    'nom'        => $nom,
+                    'v_bloc'     => $v_bloc,
                 ];
             }
-        } elseif ($f_t > $f_i + $eps || $p_init < $p_cible) {
+        } elseif ($f_t > $f_i + $eps || $q_i < $q_f) {
             // ===== Méthode "enrichissement" : O2 pur puis complément d'air. =====
             // Cas : on veut PLUS d'O2, OU le même mélange à plus haute pression
             // (compléter à l'air seul ferait baisser le pourcentage d'O2).
@@ -123,35 +153,44 @@ function calcul_melange(array $entree): array
                 // Pas de place dans le bloc pour ajouter de l'O2.
                 $erreurs[] = "La pression initiale doit être inférieure à la pression cible pour ajouter de l'O2.";
             } else {
-                // Équilibre des pressions partielles d'O2 à la cible.
-                // En appelant P_o2 la pression d'O2 pur ajoutée et en sachant
-                // que le reste du complément est de l'air (21% d'O2) :
-                //   P_cible*F_cible = P_init*F_init      (déjà en place)
-                //                   + P_o2               (O2 pur ajouté)
-                //                   + 0.21*(P_cible - P_init - P_o2)  (air)
-                // D'où la formule classique, en isolant P_o2 :
-                //   P_o2 = (P_cible*F_cible - P_init*F_init - 0.21*(P_cible - P_init)) / (1 - 0.21)
+                // Équilibre de l'O2 en quantités conservées. En appelant Q_o2
+                // la quantité d'O2 pur ajoutée, le complément restant étant
+                // de l'air (21% d'O2) :
+                //   F_cible*q_cible = F_init*q_init      (déjà en place)
+                //                   + Q_o2               (O2 pur ajouté)
+                //                   + 0.21*(q_cible - q_init - Q_o2)  (air)
+                // D'où, en isolant Q_o2 :
+                //   Q_o2 = (F_cible*q_cible - F_init*q_init - 0.21*(q_cible - q_init)) / (1 - 0.21)
                 // À mélange constant (F_cible = F_init) elle se réduit à
-                //   P_o2 = (P_cible - P_init)*(F - 0.21)/0.79
-                // qui est bien la pression d'O2 à ajouter pour garder la même
+                //   Q_o2 = (q_cible - q_init)*(F - 0.21)/0.79
+                // qui est bien la quantité d'O2 à ajouter pour garder la même
                 // fraction en montant en pression.
-                $pression_o2_a_ajouter = (($p_cible * $f_t) - ($p_init * $f_i) - 0.21 * ($p_cible - $p_init)) / (1 - 0.21);
+                $q_o2 = (($f_t * $q_f) - ($f_i * $q_i) - $air * ($q_f - $q_i)) / (1 - $air);
 
                 // Un calcul "négatif" se produit quand le départ est déjà plus
                 // riche que nécessaire ; la garde ci-dessus l'écarte, on met
                 // max(0,...) en ceinture-bretelles.
-                $pression_o2_a_ajouter = max(0, $pression_o2_a_ajouter);
+                $q_o2 = max(0, $q_o2);
 
-                // Conversion litres et facturation : la pression d'O2 ajoutée
-                // fois le volume du bloc = litres d'O2 utilisés (bar-litres = L
-                // à 1 atm pour un gaz parfait).
-                $litres_o2  = $pression_o2_a_ajouter * $v_bloc;
+                // Mélange intermédiaire après tout l'O2, avant le complément
+                // d'air : sa fraction décide de la pression manométrique
+                // d'arrêt de l'O2 (en gaz réel, Z du mélange intermédiaire
+                // diffère de celui du départ ET de la cible).
+                $q_apres_o2 = $q_i + $q_o2;
+                $f_apres_o2 = $q_apres_o2 > 0 ? (($f_i * $q_i) + $q_o2) / $q_apres_o2 : $f_i;
+                $p_fin_o2   = $vers_pression($f_apres_o2, $q_apres_o2);
+
+                // Conversion litres et facturation : la quantité d'O2 (en
+                // litres normaux, c'est-à-dire en "bar" équivalent à 1 atm en
+                // gaz parfait) fois le volume du bloc = litres d'O2 utilisés.
+                $litres_o2  = $q_o2 * $v_bloc;
                 $prix_total = ($litres_o2 / 1000) * $prix_m3;
 
                 $resultat = [
                     'methode'  => 'o2',
-                    'p_o2'     => round($pression_o2_a_ajouter, 1), // à ajouter
-                    'p_fin_o2' => round($p_init + $pression_o2_a_ajouter, 1), // arrêt O2
+                    'modele'   => $modele,
+                    'p_o2'     => round($q_o2, 1), // à ajouter (bar au sens gaz parfait)
+                    'p_fin_o2' => round($p_fin_o2, 1), // arrêt O2
                     'o2'       => round($litres_o2, 2),
                     'prix'     => round($prix_total, 2),
                     'p_cible'  => $p_cible,
@@ -162,7 +201,10 @@ function calcul_melange(array $entree): array
 
                 // Vérification finale : est-ce que l'O2 nécessaire dépasse la
                 // pression finale ? (mélange physiquement impossible)
-                if ($resultat['p_fin_o2'] > $p_cible) {
+                $impossible = ($modele === 'reel')
+                    ? ($q_apres_o2 > $q_f + 1e-9)
+                    : ($resultat['p_fin_o2'] > $p_cible);
+                if ($impossible) {
                     $erreurs[] = "Mélange impossible : la quantité d'O2 pur requise dépasse la pression cible.";
                     $resultat = null;
                 }
@@ -170,17 +212,19 @@ function calcul_melange(array $entree): array
         } elseif ($p_init > $p_cible) {
             // ===== Mélange constant en sur-pression : simple vidange. =====
             // Vidanger ne change pas la fraction d'O2 : redescendre à P_cible
-            // suffit, aucun gaz n'est ajouté.
+            // suffit, aucun gaz n'est ajouté. Identique dans les deux modèles.
             $resultat = [
-                'methode'  => 'vidange',
-                'p_cut'    => round($p_cible, 1),
-                'p_cible'  => $p_cible,
-                'f_init'   => $f_init,
-                'o2'       => 0.0,
-                'prix'     => 0.0,
-                'o2_gache' => round($f_i * ($p_init - $p_cible) * $v_bloc, 1),
-                'nom'      => $nom,
-                'v_bloc'   => $v_bloc,
+                'methode'    => 'vidange',
+                'modele'     => $modele,
+                'p_cut'      => round($p_cible, 1),
+                'p_cible'    => $p_cible,
+                'f_init'     => $f_init,
+                'o2'         => 0.0,
+                'prix'       => 0.0,
+                'air_ajoute' => 0.0,
+                'o2_gache'   => round($f_i * ($q_i - $q_f) * $v_bloc, 1),
+                'nom'        => $nom,
+                'v_bloc'     => $v_bloc,
             ];
         } else {
             // Rien à faire : le bloc est déjà au mélange et à la pression voulus.

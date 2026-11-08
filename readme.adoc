@@ -22,14 +22,23 @@ Le moteur de calcul vit dans ``calcul.php`` (fonction ``calcul_melange``), separ
 
 Le complement d'air des methodes dilution et vidange n'est pas facture par le calcul (O2 = 0 L, prix = 0 EUR).
 
+=== Modele de gaz : parfait ou reel
+
+Le formulaire propose un choix (``modele``) :
+
+* Gaz parfait (defaut, comportement historique) : les quantites de matiere sont proportionnelles aux pressions.
+* Gaz reel : facteur de compressibilite ``Z(p) = 1 + fO2*(c1.p + c2.p^2 + c3.p^3) + fN2*(...)``, le meme ajustement polynomial que Subsurface (core/gas-model.c) et realblender (https://github.com/atdotde/realblender) ; coefficients dans ``gaz_reel.php``. Les bilans d'O2 sont faits en litres normaux (q = p*Z(1)/Z(p)), puis les quantites sont reconverties en pressions manometriques par inversion iterative (find_p).
+
+Exemple EAN50 200 bar -> EAN32 a 200 bar : coupure a 75.9 bar en gaz parfait, 72.6 bar en gaz reel. Le modele reel diminue aussi legerement la quantite d'O2 facturee a l'enrichissement.
+
 [WARNING]
 ====
-Toutes les formules supposent des gaz parfaits. Aux pressions de gonflage, un calculateur en gaz reel (correction de compressibilite) indique quelques bars de moins a la vidange : sur l'exemple EAN50 -> EAN32 a 200 bar, environ 72 bar au lieu de 76. Ces valeurs sont indicatives ; l'analyse du melange final a l'analyseur de gaz reste obligatoire avant usage.
+Le modele gaz reel suppose que tout se fait a temperature ambiante constante : remplir lentement et laisser equilibrer avant de lire la pression. Ces valeurs restent indicatives ; l'analyse du melange final a l'analyseur de gaz est obligatoire avant usage.
 ====
 
 == Tests
 
-Suite de non-regression du calcul (enrichissement, dilution, cas limites et erreurs de saisie), sans base de donnees ni navigateur :
+Suite de non-regression du calcul (enrichissement, dilution, modele gaz parfait et gaz reel avec simulation aller-retour des recettes affichees, cas limites et erreurs de saisie), sans base de donnees ni navigateur :
 
 [source,console]
 ----
