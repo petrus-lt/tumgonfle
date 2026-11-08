@@ -100,15 +100,27 @@ check('J1', 'méthode', 'dilution', $r['resultat']['methode'] ?? 'null');
 checkNum('J2', 'pression de coupure (235*0.11/0.19)', 136.1, $r['resultat']['p_cut'] ?? null);
 checkNum('J3', 'O2 rejeté (0.4*83.95*11)', 369.4, $r['resultat']['o2_gache'] ?? null);
 
-// E : départ trop bas -> infaisable avec O2 + air seuls.
+// E : départ trop pauvre en quantité pour une vidange -> rachat d'O2.
+// 50 bar EAN50 -> EAN32 à 200 bar : ajouter 9.5 bar d'O2 (arrêt à 59.5 bar),
+// puis compléter à l'air. (Avant correction, l'outil déclarait ce cas
+// impossible à tort.)
 $r = calcul_melange(entree(['f_init' => 50, 'f_cible' => 32, 'p_init' => 50]));
-checkErreur('E1', 'dilution infaisable si départ < P_cut', $r, 'il faudrait au moins 76 bar');
+check('E1', 'méthode', 'o2', $r['resultat']['methode'] ?? 'null');
+checkNum('E2', 'quantité d\'O2 à racheter', 9.5, $r['resultat']['p_o2'] ?? null);
+checkNum('E3', 'arrêt O2', 59.5, $r['resultat']['p_fin_o2'] ?? null);
+checkNum('E4', 'litres d\'O2 facturés', 113.92, $r['resultat']['o2'] ?? null);
 
-// M : faisabilité à la limite (P_cut ≈ 75.86).
+// O : le cas signalé — 10 bar d'O2 pur -> EAN32 à 200 bar.
+$r = calcul_melange(entree(['f_init' => 100, 'f_cible' => 32, 'p_init' => 10]));
+check('O1', 'méthode', 'o2', $r['resultat']['methode'] ?? 'null');
+checkNum('O2', 'O2 à ajouter (14.1/0.79 ≈ 17.85)', 17.8, $r['resultat']['p_o2'] ?? null);
+checkNum('O3', 'arrêt O2 (bloc encore à 100%)', 27.8, $r['resultat']['p_fin_o2'] ?? null);
+
+// M : frontière P_cut ≈ 75.9 bar : au-dessus vidange, en dessous rachat d'O2.
 $r = calcul_melange(entree(['f_init' => 50, 'f_cible' => 32, 'p_init' => 76]));
-check('M1', 'départ 76 bar faisable', 'dilution', $r['resultat']['methode'] ?? 'null');
+check('M1', 'départ 76 bar -> vidange', 'dilution', $r['resultat']['methode'] ?? 'null');
 $r = calcul_melange(entree(['f_init' => 50, 'f_cible' => 32, 'p_init' => 75]));
-check('M2', 'départ 75 bar refusé', 'null', $r['resultat'] === null ? 'null' : gettype($r['resultat']));
+check('M2', 'départ 75 bar -> rachat d\'O2', 'o2', $r['resultat']['methode'] ?? 'null');
 
 echo "-- Mélange constant / cas limites --\n";
 

@@ -74,7 +74,13 @@ function calcul_melange(array $entree): array
         // sont considérés identiques (pas de vidange ni d'ajout d'O2 "utile").
         $eps = 0.001;
 
-        if ($f_t < $f_i - $eps) {
+        // P_cut : pression à laquelle il faut vider le bloc pour atteindre la
+        // cible par simple vidange + air (définition, voir branche dilution).
+        // Si f_init = 21% (mélange déjà pauvre comme l'air), la dilution est
+        // de toute façon impossible (f_cible ≥ 21) ; la valeur importe peu.
+        $p_cut = ($f_i > $air) ? ($p_cible * ($f_t - $air) / ($f_i - $air)) : $p_cible;
+
+        if ($f_t < $f_i - $eps && $p_init >= $p_cut) {
             // ===== Méthode "dilution" : on veut MOINS d'O2 que le départ. =====
             // On ne peut pas retirer l'O2 sélectivement ; on vide donc une
             // partie du bloc (la fraction d'O2 du gaz RESTANT ne change pas
@@ -92,33 +98,33 @@ function calcul_melange(array $entree): array
             // 200 bar : P_cut = 200 * (0.32-0.21)/(0.50-0.21)
             //                  = 200 * 0.11/0.29 ≈ 75.9 bar (gaz parfait ;
             // en gaz réel un calculateur certifié descend vers ~72 bar).
-            $p_cut = ($p_cible * ($f_t - $air)) / ($f_i - $air);
-
-            // Faisabilité : il faut assez de mélange riche au départ.
-            // En dessous de P_cut bar de départ, même en vidant au maximum il
-            // manquerait de l'O2 pour atteindre F_cible avec de l'air seul.
-            if ($p_init < $p_cut) {
-                $erreurs[] = "Mélange impossible : il faudrait au moins " . round($p_cut) . " bar de départ pour appauvrir à " . round($f_cible) . "% en complétant à l'air.";
-            } else {
-                // Rien n'est "acheté" dans cette méthode : seul de l'air est
-                // ajouté (non facturé ici). Le gaz jeté à la vidange est
-                // chiffré en litres d'O2 gazeux perdus, à titre indicatif.
-                $resultat = [
-                    'methode'  => 'dilution',
-                    'p_cut'    => round($p_cut, 1),           // vidanger jusqu'ici
-                    'p_cible'  => $p_cible,                   // compléter jusqu'ici
-                    'f_init'   => $f_init,
-                    'o2'       => 0.0,                        // pas d'O2 ajouté
-                    'prix'     => 0.0,                        // air non facturé
-                    'o2_gache' => round($f_i * ($p_init - $p_cut) * $v_bloc, 1),
-                    'nom'      => $nom,
-                    'v_bloc'   => $v_bloc,
-                ];
-            }
+            // Rien n'est "acheté" dans cette méthode : seul de l'air est
+            // ajouté (non facturé ici). Le gaz jeté à la vidange est
+            // chiffré en litres d'O2 gazeux perdus, à titre indicatif.
+            $resultat = [
+                'methode'  => 'dilution',
+                'p_cut'    => round($p_cut, 1),           // vidanger jusqu'ici
+                'p_cible'  => $p_cible,                   // compléter jusqu'ici
+                'f_init'   => $f_init,
+                'o2'       => 0.0,                        // pas d'O2 ajouté
+                'prix'     => 0.0,                        // air non facturé
+                'o2_gache' => round($f_i * ($p_init - $p_cut) * $v_bloc, 1),
+                'nom'      => $nom,
+                'v_bloc'   => $v_bloc,
+            ];
         } elseif ($f_t > $f_i + $eps || $p_init < $p_cible) {
             // ===== Méthode "enrichissement" : O2 pur puis complément d'air. =====
-            // Cas : on veut PLUS d'O2, OU le même mélange à plus haute pression
-            // (compléter à l'air seul ferait baisser le pourcentage d'O2).
+            // Cas : on veut PLUS d'O2, OU le même mélange à plus haute
+            // pression (compléter à l'air seul ferait baisser le % d'O2) ;
+            // OU on veut MOINS d'O2 mais le départ est trop pauvre en quantité
+            // pour la simple vidange (p_init < P_cut, cf. branche précédente).
+            // Le rachat d'O2 compense alors ce qui manque, et l'air final
+            // dilue jusqu'à la cible. C'est exactement la recette "10 bar
+            // d'O2 pur -> EAN32 à 200 bar" : ajouter ~17.8 bar d'O2 (arrêt à
+            // ~27.8 bar), puis compléter à l'air. On a p_init < P_cut < P_cible,
+            // donc la garde "pas de place" ci-dessous ne peut pas se déclencher
+            // et la formule d'équilibre donne un P_o2 strictement positif
+            // (p_init < P_cut équivaut algébriquement à P_o2 > 0).
             if ($f_t > $f_i + $eps && $p_init >= $p_cible) {
                 // Pas de place dans le bloc pour ajouter de l'O2.
                 $erreurs[] = "La pression initiale doit être inférieure à la pression cible pour ajouter de l'O2.";
