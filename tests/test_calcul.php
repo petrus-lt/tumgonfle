@@ -104,19 +104,23 @@ checkNum('J3', 'O2 rejeté (0.4*83.95*11)', 369.4, $r['resultat']['o2_gache'] ??
 // 50 bar EAN50 -> EAN32 à 200 bar : ajouter 9.5 bar d'O2 (arrêt à 59.5 bar),
 // puis compléter à l'air. (Avant correction, l'outil déclarait ce cas
 // impossible à tort.)
-$r = calcul_melange(entree(['f_init' => 50, 'f_cible' => 32, 'p_init' => 50]));
+$in = entree(['f_init' => 50, 'f_cible' => 32, 'p_init' => 50]);
+$r = calcul_melange($in);
 check('E1', 'méthode', 'o2', $r['resultat']['methode'] ?? 'null');
 checkNum('E2', 'quantité d\'O2 à racheter', 9.5, $r['resultat']['p_o2'] ?? null);
 checkNum('E3', 'arrêt O2', 59.5, $r['resultat']['p_fin_o2'] ?? null);
 checkNum('E4', 'litres d\'O2 facturés', 113.92, $r['resultat']['o2'] ?? null);
+check_fraction('E5', 32.0, melange_final_o2($in, $r['resultat']));
 
 // O : le cas signalé — 10 bar d'O2 pur -> EAN32 à 200 bar.
-$r = calcul_melange(entree(['f_init' => 100, 'f_cible' => 32, 'p_init' => 10]));
+$in = entree(['f_init' => 100, 'f_cible' => 32, 'p_init' => 10]);
+$r = calcul_melange($in);
 check('O1', 'méthode', 'o2', $r['resultat']['methode'] ?? 'null');
 checkNum('O2', 'O2 à ajouter (14.1/0.79 ≈ 17.85)', 17.8, $r['resultat']['p_o2'] ?? null);
 checkNum('O3', 'arrêt O2 (bloc encore à 100%)', 27.8, $r['resultat']['p_fin_o2'] ?? null);
+check_fraction('O4', 32.0, melange_final_o2($in, $r['resultat']));
 
-// M : frontière P_cut ≈ 75.9 bar : au-dessus vidange, en dessous rachat d'O2.
+// M : frontière q_cut ≈ 75.9 bar : au-dessus vidange, en dessous rachat d'O2.
 $r = calcul_melange(entree(['f_init' => 50, 'f_cible' => 32, 'p_init' => 76]));
 check('M1', 'départ 76 bar -> vidange', 'dilution', $r['resultat']['methode'] ?? 'null');
 $r = calcul_melange(entree(['f_init' => 50, 'f_cible' => 32, 'p_init' => 75]));
@@ -141,6 +145,156 @@ $r = calcul_melange(entree(['f_init' => 101]));
 check('L1', '% initial hors bornes -> erreur', '1', (string)(count($r['erreurs']) >= 1 ? 1 : 0));
 $r = calcul_melange(entree(['f_cible' => 18]));
 check('L2', '% cible < 21 refusé', '1', (string)(count($r['erreurs']) >= 1 ? 1 : 0));
+
+echo "-- Modèle gaz réel (facteur de compressibilité Subsurface/realblender) --\n";
+
+// Simulation "aller-retour" de la recette affichée : on rejoue les étapes
+// avec les pressions arrondies rendues à l'écran et on doit retrouver la
+// fraction d'O2 cible (aux erreurs d'arrichage près). C'est le contrôle le
+// plus fort : il valide cohérence interne ET inversion pression<->quantité.
+function q_modele(float $p, float $f, string $modele): float
+{
+    return $modele === 'reel' ? quantite_normale($p, $f) : $p;
+}
+
+function melange_final_o2(array $in, array $res): float
+{
+    $modele = $res['modele'];
+    $f_i = $in['f_init'] / 100;
+    $q_i = q_modele($in['p_init'], $f_i, $modele);
+    // Étape 1 : O2 pur jusqu'à la pression d'arrêt affichée.
+    $phi1 = max($f_i, 0.21);
+    $q1 = $q_i;
+    for ($i = 0; $i < 60; $i++) {
+        $q1 = q_modele($res['p_fin_o2'], $phi1, $modele);
+        $phi1_n = ($f_i * $q_i + ($q1 - $q_i)) / $q1; // O2 ajouté pur (fraction 1)
+        if (abs($phi1_n - $phi1) < 1e-12) { $phi1 = $phi1_n; break; }
+        $phi1 = $phi1_n;
+    }
+    // Étape 2 : complément d'air jusqu'à la pression cible affichée.
+    $phi2 = $phi1;
+    for ($i = 0; $i < 60; $i++) {
+        $q2 = q_modele($res['p_cible'], $phi2, $modele);
+        $phi2_n = ($phi1 * $q1 + 0.21 * ($q2 - $q1)) / $q2;
+        if (abs($phi2_n - $phi2) < 1e-12) { $phi2 = $phi2_n; break; }
+        $phi2 = $phi2_n;
+    }
+    return 100 * $phi2;
+}
+
+function melange_final_dilution(array $in, array $res): float
+{
+    $modele = $res['modele'];
+    $f_i = $in['f_init'] / 100;
+    // Étape 1 : vidange jusqu'à la pression de coupure affichée.
+    $q_cut = q_modele($res['p_cut'], $f_i, $modele);
+    // Étape 2 : complément d'air jusqu'à la pression cible affichée.
+    $phi = 0.21;
+    for ($i = 0; $i < 60; $i++) {
+        $q_fin = q_modele($res['p_cible'], $phi, $modele);
+        $phi_n = ($f_i * $q_cut + 0.21 * ($q_fin - $q_cut)) / $q_fin;
+        if (abs($phi_n - $phi) < 1e-12) { $phi = $phi_n; break; }
+        $phi = $phi_n;
+    }
+    return 100 * $phi;
+}
+
+function check_fraction(string $id, float $attendu_pct, float $obtenu_pct): void
+{
+    // Tolérance 0.1 point : les pressions rendues à l'écran sont arrondies
+    // au dixième de bar, et cette arrondi se propage dans la simulation.
+    global $verifs, $echecs;
+    $verifs++;
+    if (abs($obtenu_pct - $attendu_pct) <= 0.1) {
+        echo "  ok   $id  retour au mélange cible après simulation (" . sprintf('%.3f', $obtenu_pct) . " ≈ " . sprintf('%.2f', $attendu_pct) . ")\n";
+    } else {
+        $echecs++;
+        echo "  FAIL $id  retour au mélange cible : attendu ~" . sprintf('%.2f', $attendu_pct) . "±0.1, obtenu " . sprintf('%.3f', $obtenu_pct) . "\n";
+    }
+}
+
+// Le défaut reste le gaz parfait (non-régression du choix par omission).
+$r = calcul_melange(entree(['f_init' => 50, 'f_cible' => 32]));
+check('X0', 'modèle par défaut', 'ideale', $r['resultat']['modele'] ?? 'absent');
+
+// A réel : même cas que A (200 bar EAN50 -> EAN32 à 200 bar, 12 L).
+$in = entree(['f_init' => 50, 'f_cible' => 32, 'modele' => 'reel']);
+$r = calcul_melange($in);
+check('AR1', 'méthode', 'dilution', $r['resultat']['methode'] ?? 'null');
+checkNum('AR2', 'coupure ~72.6 bar (vs 75.9 en gaz parfait)', 72.6, $r['resultat']['p_cut'] ?? null);
+checkNum('AR3', 'air ajouté (litres normaux)', 1453.0, $r['resultat']['air_ajoute'] ?? null);
+checkNum('AR4', 'O2 rejeté', 747.3, $r['resultat']['o2_gache'] ?? null);
+check_fraction('AR5', 32.0, melange_final_dilution($in, $r['resultat']));
+
+// A idéal : la simulation aller-retour fonctionne aussi en gaz parfait.
+$in = entree(['f_init' => 50, 'f_cible' => 32]);
+$r = calcul_melange($in);
+check_fraction('AI5', 32.0, melange_final_dilution($in, $r['resultat']));
+
+// B réel : air -> EAN32 à 200 bar, 11,1 L (le vrai modèle demande un peu
+// moins d'O2 et arrête l'O2 plus tôt que les 27.8 bar du gaz parfait).
+$in = ['v_bloc' => 11.1, 'p_init' => 0, 'p_cible' => 200, 'f_init' => 21, 'f_cible' => 32, 'prix_o2' => 10, 'modele' => 'reel', 'nom' => 'Testeur'];
+$r = calcul_melange($in);
+check('BR1', 'méthode', 'o2', $r['resultat']['methode'] ?? 'null');
+checkNum('BR2', 'quantité d\'O2', 27.2, $r['resultat']['p_o2'] ?? null);
+checkNum('BR3', 'arrêt O2 (pression réelle)', 26.7, $r['resultat']['p_fin_o2'] ?? null);
+checkNum('BR4', 'litres d\'O2', 301.52, $r['resultat']['o2'] ?? null);
+checkNum('BR5', 'prix', 3.02, $r['resultat']['prix'] ?? null);
+check_fraction('BR6', 32.0, melange_final_o2($in, $r['resultat']));
+
+// D réel : complément à mélange constant 150 -> 200.
+$in = entree(['f_init' => 32, 'f_cible' => 32, 'p_init' => 150, 'modele' => 'reel']);
+$r = calcul_melange($in);
+checkNum('DR2', 'quantité d\'O2', 6.3, $r['resultat']['p_o2'] ?? null);
+checkNum('DR3', 'arrêt O2', 156.4, $r['resultat']['p_fin_o2'] ?? null);
+check_fraction('DR4', 32.0, melange_final_o2($in, $r['resultat']));
+
+// J réel : pression cible au-dessus du départ (40% -> 32% à 235 bar).
+$in = entree(['v_bloc' => 11, 'f_init' => 40, 'f_cible' => 32, 'p_init' => 220, 'p_cible' => 235, 'modele' => 'reel']);
+$r = calcul_melange($in);
+checkNum('JR2', 'pression de coupure', 128.7, $r['resultat']['p_cut'] ?? null);
+checkNum('JR3', 'O2 rejeté', 369.4, $r['resultat']['o2_gache'] ?? null);
+check_fraction('JR4', 32.0, melange_final_dilution($in, $r['resultat']));
+
+// F réel : diluer jusqu'à l'air -> coupure à 0.
+$in = entree(['f_init' => 32, 'f_cible' => 21, 'modele' => 'reel']);
+$r = calcul_melange($in);
+checkNum('FR2', 'coupure nulle', 0.0, $r['resultat']['p_cut'] ?? null);
+check_fraction('FR3', 21.0, melange_final_dilution($in, $r['resultat']));
+
+// I réel : 100% O2 -> 32%.
+$in = entree(['f_init' => 100, 'f_cible' => 32, 'modele' => 'reel']);
+$r = calcul_melange($in);
+checkNum('IR2', 'pression de coupure', 26.7, $r['resultat']['p_cut'] ?? null);
+checkNum('IR3', 'O2 rejeté', 2179.8, $r['resultat']['o2_gache'] ?? null);
+
+// E réel : départ trop pauvre pour la vidange -> rachat d'O2.
+$in = entree(['f_init' => 50, 'f_cible' => 32, 'p_init' => 50, 'modele' => 'reel']);
+$r = calcul_melange($in);
+check('ER1', 'méthode', 'o2', $r['resultat']['methode'] ?? 'null');
+checkNum('ER2', 'O2 à racheter', 8.5, $r['resultat']['p_o2'] ?? null);
+checkNum('ER3', 'arrêt O2', 58.2, $r['resultat']['p_fin_o2'] ?? null);
+check_fraction('ER4', 32.0, melange_final_o2($in, $r['resultat']));
+
+// O réel : 10 bar d'O2 pur -> EAN32 à 200 bar (le cas signalé, modèle réel).
+$in = entree(['f_init' => 100, 'f_cible' => 32, 'p_init' => 10, 'modele' => 'reel']);
+$r = calcul_melange($in);
+check('OR1', 'méthode', 'o2', $r['resultat']['methode'] ?? 'null');
+checkNum('OR2', 'O2 à ajouter (vs 17.8 en gaz parfait)', 17.1, $r['resultat']['p_o2'] ?? null);
+checkNum('OR3', 'arrêt O2 (pression réelle)', 26.7, $r['resultat']['p_fin_o2'] ?? null);
+checkNum('OR4', 'litres d\'O2', 205.22, $r['resultat']['o2'] ?? null);
+check_fraction('OR5', 32.0, melange_final_o2($in, $r['resultat']));
+
+// M réel : frontière q_cut (coupure ~72.6 bar) des deux côtés.
+$r = calcul_melange(entree(['f_init' => 50, 'f_cible' => 32, 'p_init' => 73, 'modele' => 'reel']));
+check('MR1', 'départ 73 bar -> vidange', 'dilution', $r['resultat']['methode'] ?? 'null');
+$r = calcul_melange(entree(['f_init' => 50, 'f_cible' => 32, 'p_init' => 72, 'modele' => 'reel']));
+check('MR2', 'départ 72 bar -> rachat d\'O2', 'o2', $r['resultat']['methode'] ?? 'null');
+
+// C réel : sur-pression à mélange constant -> vidange identique au gaz parfait.
+$r = calcul_melange(entree(['f_init' => 32, 'f_cible' => 32, 'p_init' => 231, 'modele' => 'reel']));
+check('CR1', 'méthode', 'vidange', $r['resultat']['methode'] ?? 'null');
+checkNum('CR2', 'vidange jusqu\'à la cible', 200.0, $r['resultat']['p_cut'] ?? null);
 
 echo "--\n";
 if ($echecs === 0) {
